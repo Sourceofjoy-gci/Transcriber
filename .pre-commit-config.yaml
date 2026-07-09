@@ -1,0 +1,27 @@
+repos:
+  - repo: local
+    hooks:
+      - id: backend-ruff-check
+        name: backend ruff check
+        entry: python -m ruff check backend
+        language: system
+        pass_filenames: false
+        types_or: [python]
+      - id: backend-ruff-format
+        name: backend ruff format check
+        entry: python -m ruff format --check
+        language: system
+        pass_filenames: true
+        types_or: [python]
+      - id: frontend-typecheck
+        name: frontend typecheck
+        entry: npm --prefix frontend run lint
+        language: system
+        pass_filenames: false
+        files: ^frontend/
+      - id: frontend-format-check
+        name: frontend format check
+        entry: npm --prefix frontend exec -- prettier --check --ignore-unknown
+        language: system
+        pass_filenames: true
+        files: ^frontend/

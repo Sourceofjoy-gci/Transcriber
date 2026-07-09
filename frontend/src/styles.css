@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply m-0 bg-mist font-sans antialiased;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .button-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-moss px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .button-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .field-label {
+    @apply grid gap-1.5 text-sm font-semibold text-slate-700;
+  }
+
+  .field-input {
+    @apply rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-ink outline-none transition placeholder:text-slate-400 focus:border-fern focus:ring-4 focus:ring-emerald-100;
+  }
+
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.18em] text-fern;
+  }
+
+  .page-title {
+    @apply mt-2 text-3xl font-bold tracking-tight text-ink;
+  }
+
+  .page-subtitle {
+    @apply mt-2 max-w-2xl text-sm leading-6 text-slate-600;
+  }
+}

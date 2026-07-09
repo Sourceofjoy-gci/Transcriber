@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "transcriber-platform-backend"
+version = "0.1.0"
+description = "Provider-based local-first transcription platform API"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.14,<2.0",
+  "celery[redis]>=5.4,<6.0",
+  "cryptography>=43,<46",
+  "email-validator>=2.2,<3.0",
+  "fastapi>=0.115,<1.0",
+  "httpx>=0.28,<1.0",
+  "psycopg[binary]>=3.2,<4.0",
+  "pydantic-settings>=2.6,<3.0",
+  "PyJWT>=2.10,<3.0",
+  "pwdlib[argon2]>=0.2,<1.0",
+  "python-multipart>=0.0.17,<1.0",
+  "redis>=5.0,<7.0",
+  "SQLAlchemy>=2.0.36,<3.0",
+  "uvicorn[standard]>=0.32,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28,<1.0",
+  "pytest>=8.3,<9.0",
+  "pytest-cov>=6.0,<7.0",
+  "ruff>=0.8,<1.0",
+]
+ai = [
+  "faster-whisper>=1.1,<2.0",
+  "huggingface-hub>=0.21,<2.0",
+]
+advanced-speech = [
+  "accelerate>=1.12,<2.0",
+  "nemo_toolkit[asr,tts]>=2.5.0",
+  "peft>=0.18,<1.0",
+  "qwen-asr>=0.0.6",
+  "soundfile>=0.13,<1.0",
+  "torch>=2.6",
+  "torchaudio>=2.6",
+  "transformers>=4.52.4,<5.0",
+]
+whisper-local = [
+  "openai-whisper>=20240930",
+]
+storage = [
+  "boto3>=1.35,<2.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
