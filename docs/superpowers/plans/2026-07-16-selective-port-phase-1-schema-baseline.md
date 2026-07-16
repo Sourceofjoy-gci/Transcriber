@@ -519,7 +519,9 @@ def test_empty_postgresql_database_upgrades_to_head_and_matches_models() -> None
         inspector = inspect(engine)
         assert set(inspector.get_table_names()) == set(Base.metadata.tables) | {"alembic_version"}
         for table_name, table in Base.metadata.tables.items():
-            assert {column["name"] for column in inspector.get_columns(table_name)} == set(table.columns)
+            assert {column["name"] for column in inspector.get_columns(table_name)} == set(
+                table.columns.keys()
+            )
         engine.dispose()
 
 

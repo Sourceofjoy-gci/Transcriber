@@ -9,6 +9,11 @@ VERSIONS_DIR = BACKEND_ROOT / "alembic" / "versions"
 
 EXPLICIT_DDL_REVISIONS = {
     "0001_initial_foundation.py",
+    "0002_transcripts_and_exports.py",
+    "0006_ai_processing.py",
+    "0007_reports.py",
+    "0009_ai_run_progress.py",
+    "0010_transcript_editor_operations.py",
 }
 
 FORBIDDEN_HISTORICAL_DDL = (
