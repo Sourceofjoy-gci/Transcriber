@@ -6,8 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 USER root
 WORKDIR /app
-COPY backend/pyproject.toml backend/requirements.lock ./
-RUN pip install --no-cache-dir -c requirements.lock -e ".[dev]"
+COPY backend/pyproject.toml backend/requirements.cpu.lock ./
+RUN pip install --no-cache-dir -c requirements.cpu.lock -e ".[dev]"
 
 COPY backend/app ./app
 COPY backend/alembic ./alembic

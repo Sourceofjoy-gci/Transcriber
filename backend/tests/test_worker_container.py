@@ -26,3 +26,11 @@ def test_worker_image_installs_native_build_tools_for_advanced_speech() -> None:
 
     assert "build-essential" in dockerfile
     assert "cmake" in dockerfile
+
+
+def test_cpu_worker_uses_cpu_lock_and_gpu_worker_can_use_full_lock() -> None:
+    dockerfile_path = Path(__file__).resolve().parents[1] / "Dockerfile"
+    dockerfile = dockerfile_path.read_text(encoding="utf-8")
+
+    assert "requirements.cpu.lock" in dockerfile
+    assert "ARG WORKER_LOCK=requirements.cpu.lock" in dockerfile
