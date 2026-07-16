@@ -329,7 +329,7 @@ def test_external_provider_worker_completes_transcript_and_usage_log(
     monkeypatch.setattr(tasks_module, "external_transcribe", fake_transcribe)
     result = tasks_module.run_transcription_job.run(job_id)
 
-    assert result["status"] == "completed"
+    assert result["status"] == "completed", result
     assert captured == {
         "provider_id": provider_id,
         "api_key": "sk-worker-success",

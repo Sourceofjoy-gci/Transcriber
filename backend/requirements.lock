@@ -112,29 +112,25 @@ click-repl==0.3.0
 cloudpickle==3.1.2
     # via nemo-toolkit
 colorama==0.4.6
-    # via
-    #   click
-    #   colorlog
-    #   ipython
-    #   pytest
-    #   sacrebleu
-    #   tqdm
-    #   typer
-    #   uvicorn
+    # via sacrebleu
 colorlog==6.10.1
     # via optuna
 contourpy==1.3.3
     # via matplotlib
 coverage==7.15.0
     # via pytest-cov
-cryptography==45.0.7
+cryptography==48.0.1
     # via transcriber-platform-backend (pyproject.toml)
 ctranslate2==4.8.1
     # via faster-whisper
 cuda-bindings==13.3.1
-    # via nemo-toolkit
+    # via
+    #   nemo-toolkit
+    #   torch
 cuda-pathfinder==1.5.6
     # via cuda-bindings
+cuda-toolkit==13.0.2
+    # via torch
 cycler==0.12.1
     # via matplotlib
 cython==3.2.8
@@ -222,6 +218,8 @@ h11==0.16.0
     #   uvicorn
 hf-gradio==0.4.1
     # via gradio
+hf-xet==1.5.1
+    # via huggingface-hub
 httpcore==1.0.9
     # via httpx
 httptools==0.8.0
@@ -444,6 +442,47 @@ nv-one-logger-training-telemetry==2.3.1
     # via
     #   nemo-toolkit
     #   nv-one-logger-pytorch-lightning-integration
+nvidia-cublas==13.1.1.3
+    # via
+    #   nvidia-cudnn-cu13
+    #   nvidia-cusolver
+    #   torch
+nvidia-cuda-cupti==13.0.85
+    # via cuda-toolkit
+nvidia-cuda-nvrtc==13.0.88
+    # via
+    #   cuda-toolkit
+    #   nvidia-cublas
+nvidia-cuda-runtime==13.0.96
+    # via cuda-toolkit
+nvidia-cudnn-cu13==9.20.0.48
+    # via torch
+nvidia-cufft==12.0.0.61
+    # via cuda-toolkit
+nvidia-cufile==1.15.1.6
+    # via cuda-toolkit
+nvidia-curand==10.4.0.35
+    # via cuda-toolkit
+nvidia-cusolver==12.0.4.66
+    # via cuda-toolkit
+nvidia-cusparse==12.6.3.3
+    # via
+    #   cuda-toolkit
+    #   nvidia-cusolver
+nvidia-cusparselt-cu13==0.8.1
+    # via torch
+nvidia-nccl-cu13==2.29.7
+    # via torch
+nvidia-nvjitlink==13.0.88
+    # via
+    #   cuda-toolkit
+    #   nvidia-cufft
+    #   nvidia-cusolver
+    #   nvidia-cusparse
+nvidia-nvshmem-cu13==3.4.5
+    # via torch
+nvidia-nvtx==13.0.85
+    # via cuda-toolkit
 omegaconf==2.3.0
     # via
     #   hydra-core
@@ -503,6 +542,8 @@ peft==0.19.1
     # via
     #   transcriber-platform-backend (pyproject.toml)
     #   nemo-toolkit
+pexpect==4.9.0
+    # via ipython
 pillow==12.3.0
     # via
     #   gradio
@@ -547,6 +588,8 @@ psycopg==3.3.4
     # via transcriber-platform-backend (pyproject.toml)
 psycopg-binary==3.3.4
     # via psycopg
+ptyprocess==0.7.0
+    # via pexpect
 pure-eval==0.2.3
     # via stack-data
 pwdlib==0.3.0
@@ -601,7 +644,7 @@ pypinyin==0.55.0
     #   pypinyin-dict
 pypinyin-dict==0.9.0
     # via nemo-toolkit
-pytest==8.4.2
+pytest==9.1.1
     # via
     #   transcriber-platform-backend (pyproject.toml)
     #   pytest-cov
@@ -628,8 +671,6 @@ pytz==2026.2
     # via
     #   gradio
     #   qwen-asr
-pywin32==312
-    # via portalocker
 pyyaml==6.0.3
     # via
     #   accelerate
@@ -847,6 +888,10 @@ transformers==4.57.6
     #   nemo-toolkit
     #   peft
     #   qwen-asr
+triton==3.7.1
+    # via
+    #   openai-whisper
+    #   torch
 typeguard==4.5.2
     # via inflect
 typer==0.26.8
@@ -889,11 +934,7 @@ typing-inspection==0.4.2
     #   pydantic
     #   pydantic-settings
 tzdata==2026.2
-    # via
-    #   kombu
-    #   pandas
-    #   psycopg
-    #   tzlocal
+    # via kombu
 tzlocal==5.4.4
     # via celery
 urllib3==2.7.0
@@ -905,6 +946,8 @@ uvicorn==0.50.2
     # via
     #   transcriber-platform-backend (pyproject.toml)
     #   gradio
+uvloop==0.22.1
+    # via uvicorn
 vine==5.1.0
     # via
     #   amqp

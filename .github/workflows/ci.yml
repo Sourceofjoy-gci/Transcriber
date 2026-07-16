@@ -8,6 +8,22 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    env:
+      TEST_DATABASE_ADMIN_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     defaults:
       run:
         working-directory: backend
@@ -78,7 +94,7 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
       - run: pip install pip-audit
-      - run: pip-audit -r backend/requirements.lock --progress-spinner off
+      - run: pip-audit --no-deps --disable-pip -r backend/requirements.cpu.lock --progress-spinner off
       - run: npm ci
         working-directory: frontend
       - run: npm audit --audit-level=high
@@ -105,3 +121,5 @@ jobs:
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

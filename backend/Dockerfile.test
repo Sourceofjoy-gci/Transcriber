@@ -1,0 +1,20 @@
+FROM transcriber-api:latest
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+USER root
+WORKDIR /app
+COPY backend/pyproject.toml backend/requirements.cpu.lock ./
+RUN pip install --no-cache-dir -c requirements.cpu.lock -e ".[dev]"
+
+COPY backend/app ./app
+COPY backend/alembic ./alembic
+COPY backend/alembic.ini ./
+COPY backend/Dockerfile ./Dockerfile
+COPY backend/tests ./tests
+COPY infra /infra
+
+USER appuser
+CMD ["pytest", "-q"]

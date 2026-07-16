@@ -81,6 +81,7 @@ services:
       target: worker
       args:
         WORKER_EXTRAS: ai,advanced-speech
+        WORKER_LOCK: requirements.lock
     env_file: .env
     command: celery -A app.worker.celery_app worker --loglevel=INFO --queues=transcription.gpu --concurrency=${CELERY_GPU_CONCURRENCY:-1}
     depends_on:

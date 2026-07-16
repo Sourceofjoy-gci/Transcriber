@@ -14,28 +14,21 @@ branch_labels = None
 depends_on = None
 
 
-def _column_exists(table: str, column: str) -> bool:
-    bind = op.get_bind()
-    inspector = sa.inspect(bind)
-    return column in {c["name"] for c in inspector.get_columns(table)}
-
-
 def upgrade() -> None:
-    columns = [
-        (
-            "progress_percent",
-            sa.Column("progress_percent", sa.Integer(), nullable=False, server_default="0"),
-        ),
-        ("progress_message", sa.Column("progress_message", sa.String(length=500))),
-        ("cancel_requested_at", sa.Column("cancel_requested_at", sa.DateTime(timezone=True))),
-        ("completed_at", sa.Column("completed_at", sa.DateTime(timezone=True))),
-    ]
-    for name, column in columns:
-        if not _column_exists("ai_processing_runs", name):
-            op.add_column("ai_processing_runs", column)
+    op.add_column(
+        "ai_processing_runs",
+        sa.Column("progress_percent", sa.Integer(), nullable=False, server_default="0"),
+    )
+    op.alter_column("ai_processing_runs", "progress_percent", server_default=None)
+    op.add_column("ai_processing_runs", sa.Column("progress_message", sa.String(500)))
+    op.add_column(
+        "ai_processing_runs", sa.Column("cancel_requested_at", sa.DateTime(timezone=True))
+    )
+    op.add_column("ai_processing_runs", sa.Column("completed_at", sa.DateTime(timezone=True)))
 
 
 def downgrade() -> None:
-    for column in ["completed_at", "cancel_requested_at", "progress_message", "progress_percent"]:
-        if _column_exists("ai_processing_runs", column):
-            op.drop_column("ai_processing_runs", column)
+    op.drop_column("ai_processing_runs", "completed_at")
+    op.drop_column("ai_processing_runs", "cancel_requested_at")
+    op.drop_column("ai_processing_runs", "progress_message")
+    op.drop_column("ai_processing_runs", "progress_percent")

@@ -4,10 +4,10 @@ Revision ID: 0011_media_derivatives_retention
 Revises: 0010_transcript_editor_ops
 """
 
-from sqlalchemy import Column, DateTime, inspect
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
-from app.db.base import Base
 
 revision = "0011_media_derivatives_retention"
 down_revision = "0010_transcript_editor_ops"
@@ -16,22 +16,29 @@ depends_on = None
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    inspector = inspect(bind)
-    columns = {column["name"] for column in inspector.get_columns("media_assets")}
-    if "legal_hold_until" not in columns:
-        with op.batch_alter_table("media_assets") as batch:
-            batch.add_column(Column("legal_hold_until", DateTime(timezone=True), nullable=True))
-    if "media_derivatives" not in inspector.get_table_names():
-        Base.metadata.create_all(bind=bind, tables=[Base.metadata.tables["media_derivatives"]])
+    op.add_column(
+        "media_assets", sa.Column("legal_hold_until", sa.DateTime(timezone=True), nullable=True)
+    )
+    op.create_table(
+        "media_derivatives",
+        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("asset_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("kind", sa.String(16), nullable=False),
+        sa.Column("status", sa.String(10), nullable=False),
+        sa.Column("storage_key", sa.String(1000)),
+        sa.Column("sha256", sa.String(64)),
+        sa.Column("content_type", sa.String(200)),
+        sa.Column("byte_size", sa.BigInteger(), nullable=False),
+        sa.Column("metadata_json", sa.JSON(), nullable=False),
+        sa.Column("failure_message", sa.Text()),
+        sa.Column("expires_at", sa.DateTime(timezone=True)),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["asset_id"], ["media_assets.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
 
 def downgrade() -> None:
-    bind = op.get_bind()
-    inspector = inspect(bind)
-    if "media_derivatives" in inspector.get_table_names():
-        Base.metadata.drop_all(bind=bind, tables=[Base.metadata.tables["media_derivatives"]])
-    columns = {column["name"] for column in inspector.get_columns("media_assets")}
-    if "legal_hold_until" in columns:
-        with op.batch_alter_table("media_assets") as batch:
-            batch.drop_column("legal_hold_until")
+    op.drop_table("media_derivatives")
+    op.drop_column("media_assets", "legal_hold_until")

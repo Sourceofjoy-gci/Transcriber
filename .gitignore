@@ -4,6 +4,7 @@
 .agents/
 .qodo/
 .refact/
+.worktrees/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -16,5 +17,5 @@ backend/_verify.db
 frontend/node_modules/
 frontend/dist/
 data/
-models/
+/models/
 *.log

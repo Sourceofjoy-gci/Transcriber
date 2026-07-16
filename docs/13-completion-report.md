@@ -1,5 +1,7 @@
 # Transcriber Platform — Completion Report
 
+> **Historical evidence correction (2026-07-16):** The clean-database migration claim in this report was invalidated by a reproducible PostgreSQL 16 failure in `0002_transcripts_and_exports`. SQLite success did not prove the production migration path. See the [approved Phase 1 schema-baseline design](superpowers/specs/2026-07-16-selective-port-phase-1-schema-baseline-design.md) and its explicit-history repair through `0012_schema_reconciliation`. The original report body is retained below for audit history.
+
 Date: 2026-06-25
 
 This report summarises the gap-analysis review, the fixes applied, the
