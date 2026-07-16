@@ -6,13 +6,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 USER root
 WORKDIR /app
-COPY pyproject.toml requirements.lock ./
+COPY backend/pyproject.toml backend/requirements.lock ./
 RUN pip install --no-cache-dir -c requirements.lock -e ".[dev]"
 
-COPY app ./app
-COPY alembic ./alembic
-COPY alembic.ini ./
-COPY tests ./tests
+COPY backend/app ./app
+COPY backend/alembic ./alembic
+COPY backend/alembic.ini ./
+COPY backend/Dockerfile ./Dockerfile
+COPY backend/tests ./tests
+COPY infra /infra
 
 USER appuser
 CMD ["pytest", "-q"]

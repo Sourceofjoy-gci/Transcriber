@@ -48,13 +48,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 USER root
 WORKDIR /app
-COPY pyproject.toml requirements.lock ./
+COPY backend/pyproject.toml backend/requirements.lock ./
 RUN pip install --no-cache-dir -c requirements.lock -e ".[dev]"
 
-COPY app ./app
-COPY alembic ./alembic
-COPY alembic.ini ./
-COPY tests ./tests
+COPY backend/app ./app
+COPY backend/alembic ./alembic
+COPY backend/alembic.ini ./
+COPY backend/Dockerfile ./Dockerfile
+COPY backend/tests ./tests
+COPY infra /infra
 
 USER appuser
 CMD ["pytest", "-q"]
@@ -62,7 +64,7 @@ CMD ["pytest", "-q"]
 
 - [ ] **Step 2: Build the controlled test image**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 .`
 
 Expected: exit 0 with Python 3.12, pytest, Ruff, and locked backend dependencies installed.
 
@@ -118,7 +120,7 @@ def test_historical_revision_uses_only_explicit_ddl(filename: str) -> None:
 
 - [ ] **Step 4: Run the source-contract test and verify RED**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm transcriber-backend-test:phase1 pytest tests/test_migrations.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 . && docker run --rm transcriber-backend-test:phase1 pytest tests/test_migrations.py -q`
 
 Expected: FAIL for `0001_initial_foundation.py` with forbidden `Base.metadata` and `from app.` tokens.
 
@@ -385,7 +387,7 @@ def downgrade() -> None:
 
 - [ ] **Step 6: Rebuild and verify GREEN**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm transcriber-backend-test:phase1 pytest tests/test_migrations.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 . && docker run --rm transcriber-backend-test:phase1 pytest tests/test_migrations.py -q`
 
 Expected: 2 tests pass.
 
@@ -574,7 +576,7 @@ Run:
 docker network create --internal transcriber_phase1_test
 docker run -d --name transcriber_phase1_pg --network transcriber_phase1_test --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g -e POSTGRES_DB=postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:16-alpine
 docker exec transcriber_phase1_pg pg_isready -U postgres -d postgres
-docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend
+docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 .
 docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q
 ```
 
@@ -903,7 +905,7 @@ def downgrade() -> None:
 
 - [ ] **Step 7: Rebuild and verify transcript/report history GREEN**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 . && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q`
 
 Expected: all migration source-contract, fresh-upgrade, legacy-upgrade, and downgrade/upgrade tests pass.
 
@@ -930,7 +932,7 @@ git commit -m "fix: freeze transcript and report migrations"
 
 - [ ] **Step 1: Add `0003`, `0004`, and `0005` to the explicit source-contract set and verify RED**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm transcriber-backend-test:phase1 pytest tests/test_migrations.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 . && docker run --rm transcriber-backend-test:phase1 pytest tests/test_migrations.py -q`
 
 Expected: three failing parameters caused by application imports, metadata DDL, or inspector-driven conditional history.
 
@@ -1135,7 +1137,7 @@ def downgrade() -> None:
 
 - [ ] **Step 5: Rebuild and verify model/provider history GREEN**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 . && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q`
 
 Expected: all migration tests pass and `alembic check` reports no generated operations.
 
@@ -1333,7 +1335,7 @@ def test_reconciliation_revision_has_no_application_dependency() -> None:
 
 - [ ] **Step 5: Rebuild and verify reconciliation GREEN**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 . && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q`
 
 Expected: all migration tests pass; the drift fixture is widened; sentinel ID is unchanged; fresh upgrade requires no reconciliation DDL.
 
@@ -1409,7 +1411,7 @@ Keep the existing locked install, Ruff, and pytest commands unchanged.
 Run:
 
 ```bash
-docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend
+docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 .
 docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 ruff check app tests
 docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest -q
 ```
@@ -1490,7 +1492,7 @@ git commit -m "docs: supersede conflicting readiness plans"
 
 - [ ] **Step 1: Rebuild the test image from the final source**
 
-Run: `docker build --no-cache -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend`
+Run: `docker build --no-cache -f backend/Dockerfile.test -t transcriber-backend-test:phase1 .`
 
 Expected: exit 0 using Python 3.12 and the committed lock.
 

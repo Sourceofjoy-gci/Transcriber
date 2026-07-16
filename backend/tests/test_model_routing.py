@@ -212,7 +212,7 @@ def _seed_cuda_model_job(db_session) -> TranscriptionJob:
 @pytest.mark.parametrize(
     ("status", "enabled"),
     [
-        (ModelInstallStatus.available, True),
+        (ModelInstallStatus.queued, True),
         (ModelInstallStatus.downloading, True),
         (ModelInstallStatus.failed, True),
         (ModelInstallStatus.deleting, False),
