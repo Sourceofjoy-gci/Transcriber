@@ -36,7 +36,7 @@ def test_dependency_scan_uses_cpu_lock_without_building_packages() -> None:
     assert "backend/requirements.cpu.lock" in dependency_scan
 
 
-def test_operational_smoke_uses_postgres_service_hostname() -> None:
+def test_operational_smoke_uses_published_postgres_port() -> None:
     workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"
     )
@@ -44,8 +44,8 @@ def test_operational_smoke_uses_postgres_service_hostname() -> None:
         "  dependency-scan:\n", maxsplit=1
     )[0]
 
-    assert "DATABASE_URL: postgresql://postgres:postgres@postgres:5432/" in operational_smoke
-    assert "RESTORE_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/" in operational_smoke
+    assert "DATABASE_URL: postgresql://postgres:postgres@localhost:5432/" in operational_smoke
+    assert "RESTORE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/" in operational_smoke
 
 
 def test_restore_smoke_passes_connection_uris_to_createdb_and_dropdb() -> None:
