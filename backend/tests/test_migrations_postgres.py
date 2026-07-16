@@ -134,3 +134,36 @@ def test_upgrade_downgrade_upgrade_cycle() -> None:
         assert_alembic_succeeds(database_url, "downgrade", "base")
         assert_alembic_succeeds(database_url, "upgrade", "head")
         assert_alembic_succeeds(database_url, "check")
+
+
+def test_current_head_status_drift_is_reconciled_without_changing_rows() -> None:
+    sentinel_id = uuid4()
+    with temporary_database() as database_url:
+        assert_alembic_succeeds(database_url, "upgrade", "0011_media_derivatives_retention")
+        engine = create_engine(database_url)
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE media_assets ALTER COLUMN status TYPE VARCHAR(10)"))
+            connection.execute(
+                text(
+                    "INSERT INTO organisations "
+                    "(id, name, slug, external_apis_allowed, local_only_enforced, created_at, updated_at) "
+                    "VALUES (:id, 'Current sentinel', :slug, false, true, now(), now())"
+                ),
+                {"id": sentinel_id, "slug": f"current-{sentinel_id.hex}"},
+            )
+        engine.dispose()
+
+        assert_alembic_succeeds(database_url, "upgrade", "head")
+        assert_alembic_succeeds(database_url, "check")
+
+        engine = create_engine(database_url)
+        status_column = next(
+            column for column in inspect(engine).get_columns("media_assets") if column["name"] == "status"
+        )
+        with engine.connect() as connection:
+            stored_id = connection.scalar(
+                text("SELECT id FROM organisations WHERE id = :id"), {"id": sentinel_id}
+            )
+        engine.dispose()
+        assert status_column["type"].length == 19
+        assert stored_id == sentinel_id

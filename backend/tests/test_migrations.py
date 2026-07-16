@@ -15,8 +15,10 @@ EXPLICIT_DDL_REVISIONS = {
     "0005_provider_operations.py",
     "0006_ai_processing.py",
     "0007_reports.py",
+    "0008_size_columns_bigint.py",
     "0009_ai_run_progress.py",
     "0010_transcript_editor_operations.py",
+    "0011_media_derivatives_retention.py",
 }
 
 FORBIDDEN_HISTORICAL_DDL = (
@@ -51,3 +53,14 @@ def test_historical_revision_uses_only_explicit_ddl(filename: str) -> None:
     source = (VERSIONS_DIR / filename).read_text(encoding="utf-8")
     violations = [token for token in FORBIDDEN_HISTORICAL_DDL if token in source]
     assert violations == []
+
+
+def test_reconciliation_revision_has_no_application_dependency() -> None:
+    source = (VERSIONS_DIR / "0012_schema_reconciliation.py").read_text(encoding="utf-8")
+    forbidden = (
+        "Base.metadata.create_all",
+        "Base.metadata.drop_all",
+        "from app.",
+        "import app.",
+    )
+    assert [token for token in forbidden if token in source] == []
