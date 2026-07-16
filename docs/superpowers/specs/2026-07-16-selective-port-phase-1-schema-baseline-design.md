@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-16
 
-**Status:** Direction approved; written specification awaiting review
+**Status:** Approved
 
 **Repository baseline:** `b30bb49` (`main`, five commits ahead of `origin/main`)
 
