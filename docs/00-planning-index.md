@@ -1,8 +1,14 @@
 # Transcriber Platform Planning Package
 
+## Governing direction as of 2026-07-16
+
+The [selective-port program](superpowers/specs/2026-07-16-selective-port-phase-1-schema-baseline-design.md) is the governing implementation direction. Transcriber remains the source of truth; Voicebox is a reference for selected model-lifecycle and interaction ideas, not a second application stack or database to merge.
+
+The program is delivered in reviewed phases. Phase 1 establishes explicit Alembic history, the `0012_schema_reconciliation` fence, PostgreSQL 16 migration acceptance, and a green backend baseline. The unified transcription release excludes Voicebox text-to-speech, voice cloning and voice profiles, Tauri, and story generation.
+
 ## Scope and approval boundary
 
-This package is the pre-implementation design for a modular, local-first AI transcription platform. It deliberately does **not** create application code, Docker files, dependencies, migrations, or model downloads. Implementation begins only after approval of this design.
+This package began as the pre-implementation design for a modular, local-first AI transcription platform. It is retained as foundational product context; current implementation scope and precedence come from the approved 2026-07-16 selective-port documents.
 
 ## Recommended baseline
 
@@ -37,6 +43,8 @@ This package is the pre-implementation design for a modular, local-first AI tran
 - [Implementation plan](06-implementation-plan.md)
 - [Security and privacy plan](07-security-and-privacy.md)
 - [Deployment plan](08-deployment.md)
+- [Governing Phase 1 design](superpowers/specs/2026-07-16-selective-port-phase-1-schema-baseline-design.md)
+- [Governing Phase 1 implementation plan](superpowers/plans/2026-07-16-selective-port-phase-1-schema-baseline.md)
 
 ## Decisions to confirm before implementation
 

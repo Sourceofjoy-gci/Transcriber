@@ -1,5 +1,7 @@
 # Production Readiness Completion Implementation Plan
 
+> **Historical plan:** Superseded by the approved selective-port program and its Phase 1 schema-baseline design dated 2026-07-16. Retained for audit history; do not execute as the governing implementation plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deliver a production-ready Transcriber release whose complete documented feature set, real local AI/translation, real acoustic diarisation, catalog-model lifecycle, recovery behavior, and production configuration are proven by one zero-exit PowerShell gate.

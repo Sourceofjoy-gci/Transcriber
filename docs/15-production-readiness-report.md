@@ -1,5 +1,7 @@
 # Production Readiness Report
 
+> **Historical evidence correction (2026-07-16):** The clean-database migration claim in this report was invalidated by a reproducible PostgreSQL 16 failure in `0002_transcripts_and_exports`; its SQLite-only evidence was not an authoritative production check. See the [approved Phase 1 schema-baseline design](superpowers/specs/2026-07-16-selective-port-phase-1-schema-baseline-design.md) and the repaired canonical head `0012_schema_reconciliation`. The original report body is retained below for audit history.
+
 Date: 2026-06-25
 Reviewer: Senior full-stack / DevOps / QA review pass
 

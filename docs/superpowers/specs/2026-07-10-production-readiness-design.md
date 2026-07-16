@@ -1,5 +1,7 @@
 # Production Readiness Completion Design
 
+> **Historical plan:** Superseded by the approved selective-port program and its Phase 1 schema-baseline design dated 2026-07-16. Retained for audit history; do not execute as the governing implementation plan.
+
 **Date:** 2026-07-10
 **Status:** Approved; implementation plan complete
 **Repository baseline:** `6f281a33e444778a68d71700d00431bce56a4030`

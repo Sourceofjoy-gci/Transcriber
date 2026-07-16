@@ -1,5 +1,7 @@
 # Universal Model Downloads Design
 
+> **Historical plan:** Superseded by the approved selective-port program and its Phase 1 schema-baseline design dated 2026-07-16. Retained for audit history; do not execute as the governing implementation plan.
+
 ## Goal
 
 Allow the CPU worker to download every model in the catalog while clearly preventing models with unavailable runtime requirements from being enabled, tested, or selected as defaults.

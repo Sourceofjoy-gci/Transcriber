@@ -2,6 +2,16 @@
 
 Date: 2026-06-25
 
+## Governing update — 2026-07-16
+
+This dated inventory is retained as historical implementation evidence. The [approved selective-port Phase 1 design](superpowers/specs/2026-07-16-selective-port-phase-1-schema-baseline-design.md) now governs repository scope and precedence.
+
+- PostgreSQL 16 is the only authoritative migration target; the canonical head is `0012_schema_reconciliation`.
+- Production migration is a backed-up, controlled one-shot Alembic step completed before API rollout, not an API-startup side effect.
+- Transcriber remains the authoritative product database. Voicebox databases are not merged into its schema.
+- Voicebox text-to-speech, voice cloning and voice profiles, Tauri, and story generation are excluded from the unified transcription release.
+- The July 10 production-readiness and July 13 universal-download documents are superseded historical plans.
+
 This document replaces the earlier `09-foundation-status.md` and
 `10-implementation-audit.md` after the most recent gap-analysis pass.
 
