@@ -167,3 +167,239 @@ def test_current_head_status_drift_is_reconciled_without_changing_rows() -> None
         engine.dispose()
         assert status_column["type"].length == 19
         assert stored_id == sentinel_id
+
+
+def test_current_head_application_contract_is_backfilled_without_changing_rows() -> None:
+    ids = {name: uuid4() for name in (
+        "organisation",
+        "asset",
+        "job",
+        "transcript",
+        "version_one",
+        "version_two",
+        "segment",
+        "derivative",
+        "ai_run",
+        "template",
+        "report",
+        "export",
+        "operation",
+        "annotation",
+        "audit",
+    )}
+    with temporary_database() as database_url:
+        assert_alembic_succeeds(database_url, "upgrade", "0011_media_derivatives_retention")
+        engine = create_engine(database_url)
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO organisations "
+                    "(id, name, slug, external_apis_allowed, local_only_enforced, created_at, updated_at) "
+                    "VALUES (:id, 'Contract sentinel', :slug, false, true, now(), now())"
+                ),
+                {"id": ids["organisation"], "slug": f"contract-{ids['organisation'].hex}"},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO media_assets "
+                    "(id, organisation_id, original_filename, content_type, byte_size, sha256, "
+                    "storage_key, status, created_at, updated_at) VALUES "
+                    "(:id, :organisation_id, 'sentinel.wav', 'audio/wav', 1, :sha256, "
+                    ":storage_key, 'ready', now(), now())"
+                ),
+                {
+                    "id": ids["asset"],
+                    "organisation_id": ids["organisation"],
+                    "sha256": "a" * 64,
+                    "storage_key": f"sentinel/{ids['asset']}",
+                },
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO transcription_jobs "
+                    "(id, organisation_id, asset_id, execution_target_kind, status, "
+                    "progress_percent, options_json, created_at, updated_at) VALUES "
+                    "(:id, :organisation_id, :asset_id, 'automatic', 'completed', 100, "
+                    "CAST('{}' AS json), now(), now())"
+                ),
+                {
+                    "id": ids["job"],
+                    "organisation_id": ids["organisation"],
+                    "asset_id": ids["asset"],
+                },
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO transcripts "
+                    "(id, job_id, source_provider, status, created_at, updated_at) VALUES "
+                    "(:id, :job_id, 'test', 'completed', now(), now())"
+                ),
+                {"id": ids["transcript"], "job_id": ids["job"]},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO transcript_versions "
+                    "(id, transcript_id, version_number, source, snapshot_json, created_at) VALUES "
+                    "(:id, :transcript_id, 1, 'test', CAST('{}' AS json), now())"
+                ),
+                {"id": ids["version_one"], "transcript_id": ids["transcript"]},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO transcript_versions "
+                    "(id, transcript_id, version_number, parent_version_id, source, snapshot_json, "
+                    "created_at) VALUES "
+                    "(:id, :transcript_id, 2, :parent_id, 'human_edit', CAST('{}' AS json), now())"
+                ),
+                {
+                    "id": ids["version_two"],
+                    "transcript_id": ids["transcript"],
+                    "parent_id": ids["version_one"],
+                },
+            )
+            connection.execute(
+                text("UPDATE transcripts SET active_version_id = :version_id WHERE id = :id"),
+                {"version_id": ids["version_two"], "id": ids["transcript"]},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO transcript_segments "
+                    "(id, version_id, sequence, start_ms, end_ms, text, is_unclear) VALUES "
+                    "(:id, :version_id, 1, 0, 1000, 'Sentinel', false)"
+                ),
+                {"id": ids["segment"], "version_id": ids["version_two"]},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO media_derivatives "
+                    "(id, asset_id, kind, status, byte_size, metadata_json, created_at, updated_at) "
+                    "VALUES (:id, :asset_id, 'waveform', 'ready', 1, CAST('{}' AS json), now(), now())"
+                ),
+                {"id": ids["derivative"], "asset_id": ids["asset"]},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO ai_processing_runs "
+                    "(id, transcript_version_id, task, execution_target_kind, options_json, status, "
+                    "result_json, progress_percent, created_at, updated_at) VALUES "
+                    "(:id, :version_id, 'summary', 'automatic', CAST('{}' AS json), 'completed', "
+                    "CAST('{}' AS json), 100, now(), now())"
+                ),
+                {"id": ids["ai_run"], "version_id": ids["version_two"]},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO report_templates "
+                    "(id, organisation_id, name, kind, schema_json, enabled, created_at, updated_at) "
+                    "VALUES (:id, :organisation_id, 'Sentinel', 'summary', CAST('{}' AS json), "
+                    "true, now(), now())"
+                ),
+                {"id": ids["template"], "organisation_id": ids["organisation"]},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO reports "
+                    "(id, transcript_version_id, template_id, title, content_json, status, "
+                    "created_at, updated_at) VALUES "
+                    "(:id, :version_id, :template_id, 'Sentinel', CAST('{}' AS json), "
+                    "'completed', now(), now())"
+                ),
+                {
+                    "id": ids["report"],
+                    "version_id": ids["version_two"],
+                    "template_id": ids["template"],
+                },
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO export_records "
+                    "(id, transcript_version_id, report_id, source_type, format, options_json, "
+                    "status, created_at, updated_at) VALUES "
+                    "(:id, :version_id, :report_id, 'report', 'json', CAST('{}' AS json), "
+                    "'completed', now(), now())"
+                ),
+                {
+                    "id": ids["export"],
+                    "version_id": ids["version_two"],
+                    "report_id": ids["report"],
+                },
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO transcript_edit_operations "
+                    "(id, version_id, operation_type, payload_json, created_at) VALUES "
+                    "(:id, :version_id, 'segment_edit', CAST('{}' AS json), now())"
+                ),
+                {"id": ids["operation"], "version_id": ids["version_two"]},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO transcript_annotations "
+                    "(id, version_id, segment_id, kind, body, created_at, updated_at) VALUES "
+                    "(:id, :version_id, :segment_id, 'note', 'Preserve me', now(), now())"
+                ),
+                {
+                    "id": ids["annotation"],
+                    "version_id": ids["version_two"],
+                    "segment_id": ids["segment"],
+                },
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO audit_logs "
+                    "(id, organisation_id, action, resource_type, resource_id, outcome, "
+                    "metadata_json, created_at) VALUES "
+                    "(:id, :organisation_id, 'sentinel', 'media_asset', :resource_id, "
+                    "'success', CAST('{}' AS json), now())"
+                ),
+                {
+                    "id": ids["audit"],
+                    "organisation_id": ids["organisation"],
+                    "resource_id": str(ids["asset"]),
+                },
+            )
+        engine.dispose()
+
+        assert_alembic_succeeds(database_url, "upgrade", "head")
+        assert_alembic_succeeds(database_url, "check")
+
+        engine = create_engine(database_url)
+        with engine.connect() as connection:
+            for table_name, row_id in (
+                ("transcripts", ids["transcript"]),
+                ("media_derivatives", ids["derivative"]),
+                ("ai_processing_runs", ids["ai_run"]),
+                ("reports", ids["report"]),
+                ("export_records", ids["export"]),
+            ):
+                assert connection.scalar(
+                    text(f"SELECT organisation_id FROM {table_name} WHERE id = :id"),
+                    {"id": row_id},
+                ) == ids["organisation"]
+            operation = connection.execute(
+                text(
+                    "SELECT transcript_id, from_version_id, to_version_id "
+                    "FROM transcript_edit_operations WHERE id = :id"
+                ),
+                {"id": ids["operation"]},
+            ).one()
+            annotation = connection.execute(
+                text(
+                    "SELECT transcript_id, note, is_unclear "
+                    "FROM transcript_annotations WHERE id = :id"
+                ),
+                {"id": ids["annotation"]},
+            ).one()
+            audit_resource_id = connection.scalar(
+                text("SELECT resource_id FROM audit_logs WHERE id = :id"),
+                {"id": ids["audit"]},
+            )
+        engine.dispose()
+
+        assert tuple(operation) == (
+            ids["transcript"],
+            ids["version_one"],
+            ids["version_two"],
+        )
+        assert tuple(annotation) == (ids["transcript"], "Preserve me", False)
+        assert audit_resource_id == ids["asset"]

@@ -1,11 +1,11 @@
-
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import uuid4
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     Column,
@@ -19,7 +19,6 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
@@ -27,7 +26,7 @@ from app.db.base import Base
 
 
 def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class MembershipStatus(StrEnum):
@@ -67,6 +66,7 @@ class TranscriptStatus(StrEnum):
 
 class ExportStatus(StrEnum):
     queued = "queued"
+    generating = "generating"
     processing = "processing"
     completed = "completed"
     failed = "failed"
@@ -98,7 +98,11 @@ class MediaDerivativeStatus(StrEnum):
 
 def enum_column(enum_cls, default=None, nullable=False):
     return mapped_column(
-        SAEnum(enum_cls, values_callable=lambda cls: [item.value for item in cls], native_enum=False),
+        SAEnum(
+            enum_cls,
+            values_callable=lambda cls: [item.value for item in cls],
+            native_enum=False,
+        ),
         default=default,
         nullable=nullable,
     )
@@ -107,8 +111,18 @@ def enum_column(enum_cls, default=None, nullable=False):
 role_permissions = Table(
     "role_permissions",
     Base.metadata,
-    Column("role_id", UUID(as_uuid=True), ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
-    Column("permission_id", UUID(as_uuid=True), ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "role_id",
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "permission_id",
+        UUID(as_uuid=True),
+        ForeignKey("permissions.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
 )
 
 
@@ -167,7 +181,9 @@ class OrganisationMembership(TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("organisation_id", "user_id", name="uq_membership_org_user"),)
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    organisation_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False)
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
     user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     role_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
     status: Mapped[MembershipStatus] = enum_column(MembershipStatus, MembershipStatus.active)
@@ -180,7 +196,9 @@ class Project(TimestampMixin, Base):
     __tablename__ = "projects"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    organisation_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False)
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     sensitivity: Mapped[str] = mapped_column(String(50), default="standard", nullable=False)
@@ -193,7 +211,9 @@ class MediaAsset(TimestampMixin, Base):
     __tablename__ = "media_assets"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    organisation_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False)
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
     project_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id"))
     uploaded_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     original_filename: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -216,7 +236,9 @@ class MediaAsset(TimestampMixin, Base):
 class MediaMetadata(Base):
     __tablename__ = "media_metadata"
 
-    asset_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("media_assets.id"), primary_key=True)
+    asset_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("media_assets.id"), primary_key=True
+    )
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     container: Mapped[str | None] = mapped_column(String(100))
     audio_codec: Mapped[str | None] = mapped_column(String(100))
@@ -224,13 +246,25 @@ class MediaMetadata(Base):
     sample_rate_hz: Mapped[int | None] = mapped_column(Integer)
     channels: Mapped[int | None] = mapped_column(Integer)
     bit_rate: Mapped[int | None] = mapped_column(Integer)
+    raw_probe_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     asset: Mapped[MediaAsset] = relationship(back_populates="media_metadata")
+
+    @property
+    def raw_probe(self) -> dict:
+        return self.raw_probe_json or {}
+
+    @raw_probe.setter
+    def raw_probe(self, value: dict) -> None:
+        self.raw_probe_json = value or {}
 
 
 class MediaDerivative(TimestampMixin, Base):
     __tablename__ = "media_derivatives"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
     asset_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("media_assets.id"), nullable=False)
     kind: Mapped[MediaDerivativeKind] = enum_column(MediaDerivativeKind, MediaDerivativeKind.normalized_audio)
     status: Mapped[MediaDerivativeStatus] = enum_column(MediaDerivativeStatus, MediaDerivativeStatus.queued)
@@ -256,7 +290,9 @@ class TranscriptionJob(TimestampMixin, Base):
     __tablename__ = "transcription_jobs"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    organisation_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False)
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
     asset_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("media_assets.id"), nullable=False)
     requested_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     execution_target_kind: Mapped[str] = mapped_column(String(50), default="automatic", nullable=False)
@@ -271,15 +307,26 @@ class TranscriptionJob(TimestampMixin, Base):
     cost_estimate: Mapped[float | None] = mapped_column(Numeric(12, 6))
     error_code: Mapped[str | None] = mapped_column(String(100))
     error_message: Mapped[str | None] = mapped_column(Text)
+    cancel_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     asset: Mapped[MediaAsset] = relationship()
     requested_by: Mapped[User | None] = relationship()
+
+    @property
+    def options(self) -> dict:
+        return self.options_json or {}
+
+    @options.setter
+    def options(self, value: dict) -> None:
+        self.options_json = value or {}
 
 
 class JobAttempt(Base):
     __tablename__ = "job_attempts"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    job_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcription_jobs.id"), nullable=False)
+    job_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcription_jobs.id"), nullable=False
+    )
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
     worker_id: Mapped[str | None] = mapped_column(String(200))
     status: Mapped[JobStatus] = enum_column(JobStatus, JobStatus.queued)
@@ -289,12 +336,22 @@ class JobAttempt(Base):
     metrics_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     job: Mapped[TranscriptionJob] = relationship()
 
+    @property
+    def metrics(self) -> dict:
+        return self.metrics_json or {}
+
+    @metrics.setter
+    def metrics(self, value: dict) -> None:
+        self.metrics_json = value or {}
+
 
 class JobEvent(Base):
     __tablename__ = "job_events"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    job_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcription_jobs.id"), nullable=False)
+    job_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcription_jobs.id"), nullable=False
+    )
     attempt_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("job_attempts.id"))
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     state: Mapped[JobStatus] = enum_column(JobStatus, JobStatus.queued)
@@ -338,6 +395,14 @@ class SystemSetting(TimestampMixin, Base):
     is_secret: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     updated_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
 
+    @property
+    def value(self) -> dict:
+        return self.value_json or {}
+
+    @value.setter
+    def value(self, value: dict) -> None:
+        self.value_json = value or {}
+
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -347,7 +412,7 @@ class AuditLog(Base):
     actor_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     action: Mapped[str] = mapped_column(String(200), nullable=False)
     resource_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    resource_id: Mapped[str | None] = mapped_column(String(100))
+    resource_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True))
     outcome: Mapped[str] = mapped_column(String(50), default="success", nullable=False)
     ip_hash: Mapped[str | None] = mapped_column(String(128))
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
@@ -366,11 +431,23 @@ class Transcript(TimestampMixin, Base):
     __tablename__ = "transcripts"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    job_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcription_jobs.id"), nullable=False)
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
+    job_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcription_jobs.id"), nullable=False
+    )
     language: Mapped[str | None] = mapped_column(String(20))
     detected_language: Mapped[str | None] = mapped_column(String(20))
     source_provider: Mapped[str] = mapped_column(String(100), default="unknown", nullable=False)
-    active_version_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_versions.id"))
+    active_version_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "transcript_versions.id",
+            name="fk_transcripts_active_version",
+            use_alter=True,
+        ),
+    )
     status: Mapped[TranscriptStatus] = enum_column(TranscriptStatus, TranscriptStatus.draft)
     job: Mapped[TranscriptionJob] = relationship()
     active_version: Mapped[TranscriptVersion | None] = relationship(foreign_keys=[active_version_id])
@@ -378,12 +455,18 @@ class Transcript(TimestampMixin, Base):
 
 class TranscriptVersion(Base):
     __tablename__ = "transcript_versions"
-    __table_args__ = (UniqueConstraint("transcript_id", "version_number", name="uq_transcript_version_number"),)
+    __table_args__ = (
+        UniqueConstraint("transcript_id", "version_number", name="uq_transcript_version_number"),
+    )
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    transcript_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcripts.id"), nullable=False)
+    transcript_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcripts.id"), nullable=False
+    )
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    parent_version_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_versions.id"))
+    parent_version_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id")
+    )
     created_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     source: Mapped[str] = mapped_column(String(100), default="system", nullable=False)
     snapshot_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
@@ -397,7 +480,9 @@ class Speaker(TimestampMixin, Base):
     __tablename__ = "speakers"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    transcript_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcripts.id"), nullable=False)
+    transcript_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcripts.id"), nullable=False
+    )
     label: Mapped[str] = mapped_column(String(100), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(150))
     role: Mapped[str | None] = mapped_column(String(100))
@@ -409,7 +494,9 @@ class TranscriptSegment(Base):
     __table_args__ = (UniqueConstraint("version_id", "sequence", name="uq_segment_version_sequence"),)
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    version_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False)
+    version_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False
+    )
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     start_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     end_ms: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -426,7 +513,9 @@ class TranscriptWord(Base):
     __tablename__ = "transcript_words"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    segment_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_segments.id"), nullable=False)
+    segment_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_segments.id"), nullable=False
+    )
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     start_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     end_ms: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -439,8 +528,13 @@ class ExportRecord(TimestampMixin, Base):
     __tablename__ = "export_records"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
     requested_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
-    transcript_version_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_versions.id"))
+    transcript_version_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id")
+    )
     report_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("reports.id"))
     source_type: Mapped[str] = mapped_column(String(50), default="transcript", nullable=False)
     source_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True))
@@ -451,10 +545,24 @@ class ExportRecord(TimestampMixin, Base):
     error_message: Mapped[str | None] = mapped_column(Text)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    @property
+    def options(self) -> dict:
+        return self.options_json or {}
+
+    @options.setter
+    def options(self, value: dict) -> None:
+        self.options_json = value or {}
+
 
 class ModelCatalog(TimestampMixin, Base):
     __tablename__ = "model_catalog"
-    __table_args__ = (UniqueConstraint("adapter_key", "model_identifier", name="uq_model_catalog_adapter_identifier"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "adapter_key",
+            "model_identifier",
+            name="uq_model_catalog_adapter_identifier",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     adapter_key: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -490,7 +598,9 @@ class InstalledModel(TimestampMixin, Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     organisation_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organisations.id"))
-    catalog_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("model_catalog.id"), nullable=False)
+    catalog_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("model_catalog.id"), nullable=False
+    )
     storage_key: Mapped[str | None] = mapped_column(String(1000))
     status: Mapped[ModelInstallStatus] = enum_column(ModelInstallStatus, ModelInstallStatus.queued)
     download_progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -515,9 +625,13 @@ class ModelTaskDefault(TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("organisation_id", "task", name="uq_model_task_default_org_task"),)
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    organisation_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False)
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
     task: Mapped[str] = mapped_column(String(100), nullable=False)
-    installed_model_id: Mapped[UUID] = mapped_column("execution_target_id", UUID(as_uuid=True), nullable=False)
+    installed_model_id: Mapped[UUID] = mapped_column(
+        "execution_target_id", UUID(as_uuid=True), nullable=False
+    )
     execution_target_id = synonym("installed_model_id")
     updated_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
 
@@ -565,7 +679,9 @@ class ProviderSecret(Base):
     __tablename__ = "provider_secrets"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    provider_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_definitions.id"), nullable=False)
+    provider_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("provider_definitions.id"), nullable=False
+    )
     ciphertext: Mapped[str] = mapped_column(Text, nullable=False)
     nonce: Mapped[str] = mapped_column(String(200), nullable=False)
     key_version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -577,14 +693,16 @@ class ProviderUsageLog(Base):
     __tablename__ = "provider_usage_logs"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    provider_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_definitions.id"), nullable=False)
+    provider_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("provider_definitions.id"), nullable=False
+    )
     job_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("transcription_jobs.id"))
     task: Mapped[str] = mapped_column(String(100), nullable=False)
     request_id: Mapped[str | None] = mapped_column(String(200))
     input_units: Mapped[int | None] = mapped_column(Integer)
     output_units: Mapped[int | None] = mapped_column(Integer)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
-    estimated_cost: Mapped[float | None] = mapped_column(Numeric(12, 6))
+    estimated_cost: Mapped[str | None] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     error_code: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, nullable=False)
@@ -594,20 +712,43 @@ class AIProcessingRun(TimestampMixin, Base):
     __tablename__ = "ai_processing_runs"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    transcript_version_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False)
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
+    transcript_version_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False
+    )
     task: Mapped[str] = mapped_column(String(100), nullable=False)
     execution_target_kind: Mapped[str] = mapped_column(String(50), default="automatic", nullable=False)
     execution_target_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True))
     options_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="queued", nullable=False)
     result_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
-    output_version_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_versions.id"))
+    output_version_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id")
+    )
     cost_estimate: Mapped[float | None] = mapped_column(Numeric(12, 6))
     error_message: Mapped[str | None] = mapped_column(Text)
     progress_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     progress_message: Mapped[str | None] = mapped_column(String(500))
     cancel_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    @property
+    def options(self) -> dict:
+        return self.options_json or {}
+
+    @options.setter
+    def options(self, value: dict) -> None:
+        self.options_json = value or {}
+
+    @property
+    def result(self) -> dict:
+        return self.result_json or {}
+
+    @result.setter
+    def result(self, value: dict | None) -> None:
+        self.result_json = value or {}
 
 
 class ReportTemplate(TimestampMixin, Base):
@@ -634,35 +775,82 @@ class Report(TimestampMixin, Base):
     __tablename__ = "reports"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    transcript_version_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False)
-    template_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("report_templates.id"), nullable=False)
-    processing_run_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("ai_processing_runs.id"))
+    organisation_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
+    transcript_version_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False
+    )
+    template_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("report_templates.id")
+    )
+    processing_run_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ai_processing_runs.id")
+    )
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     content_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     content_markdown: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(50), default="ready", nullable=False)
-    template: Mapped[ReportTemplate] = relationship()
+    template: Mapped[ReportTemplate | None] = relationship()
+
+    @property
+    def content(self) -> dict:
+        return self.content_json or {}
+
+    @content.setter
+    def content(self, value: dict) -> None:
+        self.content_json = value or {}
 
 
 class TranscriptEditOperation(Base):
     __tablename__ = "transcript_edit_operations"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    version_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False)
+    version_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id")
+    )
+    transcript_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcripts.id"), nullable=False
+    )
+    from_version_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False
+    )
+    to_version_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False
+    )
+    segment_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_segments.id")
+    )
     actor_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     operation_type: Mapped[str] = mapped_column(String(100), nullable=False)
     payload_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+    @property
+    def payload(self) -> dict:
+        return self.payload_json or {}
+
+    @payload.setter
+    def payload(self, value: dict) -> None:
+        self.payload_json = value or {}
 
 
 class TranscriptAnnotation(TimestampMixin, Base):
     __tablename__ = "transcript_annotations"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    version_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False)
+    transcript_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcripts.id"), nullable=False
+    )
+    version_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transcript_versions.id"), nullable=False
+    )
     segment_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("transcript_segments.id"))
     author_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
-    kind: Mapped[str] = mapped_column(String(100), nullable=False)
+    kind: Mapped[str | None] = mapped_column(String(100))
     body: Mapped[str | None] = mapped_column(Text)
     start_offset: Mapped[int | None] = mapped_column(Integer)
     end_offset: Mapped[int | None] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(Text)
+    is_unclear: Mapped[bool | None] = mapped_column(Boolean)
