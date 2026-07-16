@@ -28,6 +28,7 @@
 **Files:**
 
 - Create: `backend/Dockerfile.test`
+- Modify: `backend/alembic.ini`
 - Modify: `backend/tests/test_migrations.py`
 - Modify: `backend/alembic/versions/0001_initial_foundation.py`
 
@@ -39,19 +40,15 @@
 - [ ] **Step 1: Create the locked Python 3.12 test image definition**
 
 ```dockerfile
-FROM python:3.12-slim
+FROM transcriber-api:latest
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
-
+USER root
 WORKDIR /app
 COPY pyproject.toml requirements.lock ./
-COPY app/__init__.py ./app/__init__.py
 RUN pip install --no-cache-dir -c requirements.lock -e ".[dev]"
 
 COPY app ./app
@@ -59,6 +56,7 @@ COPY alembic ./alembic
 COPY alembic.ini ./
 COPY tests ./tests
 
+USER appuser
 CMD ["pytest", "-q"]
 ```
 
@@ -120,7 +118,7 @@ def test_historical_revision_uses_only_explicit_ddl(filename: str) -> None:
 
 - [ ] **Step 4: Run the source-contract test and verify RED**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm transcriber-backend-test:phase1 tests/test_migrations.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm transcriber-backend-test:phase1 pytest tests/test_migrations.py -q`
 
 Expected: FAIL for `0001_initial_foundation.py` with forbidden `Base.metadata` and `from app.` tokens.
 
@@ -387,14 +385,14 @@ def downgrade() -> None:
 
 - [ ] **Step 6: Rebuild and verify GREEN**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm transcriber-backend-test:phase1 tests/test_migrations.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm transcriber-backend-test:phase1 pytest tests/test_migrations.py -q`
 
 Expected: 2 tests pass.
 
 - [ ] **Step 7: Commit the controlled test runtime and explicit foundation**
 
 ```bash
-git add backend/Dockerfile.test backend/tests/test_migrations.py backend/alembic/versions/0001_initial_foundation.py
+git add backend/Dockerfile.test backend/alembic.ini backend/tests/test_migrations.py backend/alembic/versions/0001_initial_foundation.py docs/superpowers/plans/2026-07-16-selective-port-phase-1-schema-baseline.md
 git commit -m "fix: freeze foundation migration ddl"
 ```
 
@@ -575,7 +573,7 @@ docker network create --internal transcriber_phase1_test
 docker run -d --name transcriber_phase1_pg --network transcriber_phase1_test --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g -e POSTGRES_DB=postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:16-alpine
 docker exec transcriber_phase1_pg pg_isready -U postgres -d postgres
 docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend
-docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 tests/test_migrations.py tests/test_migrations_postgres.py -q
+docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q
 ```
 
 Expected: source-contract failures plus the empty-upgrade failure caused by metadata-dependent transcript/report history.
@@ -903,7 +901,7 @@ def downgrade() -> None:
 
 - [ ] **Step 7: Rebuild and verify transcript/report history GREEN**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 tests/test_migrations.py tests/test_migrations_postgres.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q`
 
 Expected: all migration source-contract, fresh-upgrade, legacy-upgrade, and downgrade/upgrade tests pass.
 
@@ -930,7 +928,7 @@ git commit -m "fix: freeze transcript and report migrations"
 
 - [ ] **Step 1: Add `0003`, `0004`, and `0005` to the explicit source-contract set and verify RED**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm transcriber-backend-test:phase1 tests/test_migrations.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm transcriber-backend-test:phase1 pytest tests/test_migrations.py -q`
 
 Expected: three failing parameters caused by application imports, metadata DDL, or inspector-driven conditional history.
 
@@ -1135,7 +1133,7 @@ def downgrade() -> None:
 
 - [ ] **Step 5: Rebuild and verify model/provider history GREEN**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 tests/test_migrations.py tests/test_migrations_postgres.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q`
 
 Expected: all migration tests pass and `alembic check` reports no generated operations.
 
@@ -1333,7 +1331,7 @@ def test_reconciliation_revision_has_no_application_dependency() -> None:
 
 - [ ] **Step 5: Rebuild and verify reconciliation GREEN**
 
-Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 tests/test_migrations.py tests/test_migrations_postgres.py -q`
+Run: `docker build -f backend/Dockerfile.test -t transcriber-backend-test:phase1 backend && docker run --rm --network transcriber_phase1_test -e TEST_DATABASE_ADMIN_URL=postgresql+psycopg://postgres:postgres@transcriber_phase1_pg:5432/postgres transcriber-backend-test:phase1 pytest tests/test_migrations.py tests/test_migrations_postgres.py -q`
 
 Expected: all migration tests pass; the drift fixture is widened; sentinel ID is unchanged; fresh upgrade requires no reconciliation DDL.
 
