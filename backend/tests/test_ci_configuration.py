@@ -48,6 +48,19 @@ def test_operational_smoke_uses_postgres_service_hostname() -> None:
     assert "RESTORE_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/" in operational_smoke
 
 
+def test_restore_smoke_passes_connection_uris_to_createdb_and_dropdb() -> None:
+    script = (REPOSITORY_ROOT / "scripts" / "restore-smoke.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'source_admin_url="${source_url%/*}/postgres"' in script
+    assert 'target_admin_url="${target_url%/*}/postgres"' in script
+    assert "validate_database_name()" in script
+    assert 'DROP DATABASE IF EXISTS \\\"$2\\\"' in script
+    assert 'CREATE DATABASE \\\"$2\\\"' in script
+    assert 'transcriber-restore-smoke.dump.XXXXXX' in script
+
+
 def test_cpu_lock_excludes_optional_advanced_speech_packages() -> None:
     requirements_path = REPOSITORY_ROOT / "backend" / "requirements.cpu.lock"
     requirements = requirements_path.read_text(encoding="utf-8")
