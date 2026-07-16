@@ -36,6 +36,18 @@ def test_dependency_scan_uses_cpu_lock_without_building_packages() -> None:
     assert "backend/requirements.cpu.lock" in dependency_scan
 
 
+def test_operational_smoke_uses_postgres_service_hostname() -> None:
+    workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+    operational_smoke = workflow.split("  operational-smoke:\n", maxsplit=1)[1].split(
+        "  dependency-scan:\n", maxsplit=1
+    )[0]
+
+    assert "DATABASE_URL: postgresql://postgres:postgres@postgres:5432/" in operational_smoke
+    assert "RESTORE_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/" in operational_smoke
+
+
 def test_cpu_lock_excludes_optional_advanced_speech_packages() -> None:
     requirements_path = REPOSITORY_ROOT / "backend" / "requirements.cpu.lock"
     requirements = requirements_path.read_text(encoding="utf-8")

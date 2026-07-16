@@ -78,8 +78,8 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - run: sh scripts/restore-smoke.sh
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/transcriber_restore_source
-          RESTORE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/transcriber_restore_target
+          DATABASE_URL: postgresql://postgres:postgres@postgres:5432/transcriber_restore_source
+          RESTORE_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/transcriber_restore_target
 
   dependency-scan:
     runs-on: ubuntu-latest
